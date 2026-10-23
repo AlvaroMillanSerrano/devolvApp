@@ -1,11 +1,11 @@
 spring:
   rabbitmq:
-    host: localhost
+    host: rabbitmq
     port: 5672
     username: demo
     password: demo
   mail:
-    host: localhost
+    host: mailhog
     port: 1025
     properties:
       mail:

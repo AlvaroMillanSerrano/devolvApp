@@ -1,4 +1,61 @@
 services:
+  frontend:
+    build: ./devolvapp_frontend
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+  
+  backend:
+    build: ./devolvapp_backend
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=devolvapp
+      - POSTGRES_USER=manager
+      - POSTGRES_PASSWORD=4321
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=demo
+      - RABBITMQ_PASSWORD=demo
+      - SMTP_HOST=mailhog
+      - SMTP_PORT=1025
+      - SMTP_AUTH=false
+      - SMTP_STARTTLS=false
+      - FRONTEND_BASE_URL=http://localhost
+    healthcheck:
+      test: ["CMD-SHELL", "ps aux | grep -q 'app.jar' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  notification:
+    build: ./devolvapp_notification
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=demo
+      - RABBITMQ_PASSWORD=demo
+      - SMTP_HOST=mailhog
+      - SMTP_PORT=1025
+      - SMTP_AUTH=false
+      - SMTP_STARTTLS=false
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      mailhog:
+        condition: service_started
+
   postgres:
     image: postgres:17-alpine
     container_name: devolv-postgres
@@ -6,8 +63,6 @@ services:
       POSTGRES_DB: devolvapp
       POSTGRES_USER: manager
       POSTGRES_PASSWORD: 4321
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -19,8 +74,6 @@ services:
   redis:
     image: redis:7-alpine
     container_name: devolv-redis
-    ports:
-      - "6379:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -36,8 +89,7 @@ services:
       RABBITMQ_DEFAULT_USER: demo
       RABBITMQ_DEFAULT_PASS: demo
     ports:
-      - "5672:5672"     # AMQP
-      - "15672:15672"   # Management UI
+      - "15672:15672"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
@@ -52,7 +104,6 @@ services:
     restart: unless-stopped
     user: "0"
     ports:
-      - "1025:1025"
       - "8025:8025"
     environment:
       - MH_STORAGE=maildir
